@@ -1,6 +1,7 @@
 from timer import RepeatedTimer
 from datetime import datetime
 from requests import get
+import http.client
 
 class DowntimeInfo(object):
     def __init__(self, error_code):
@@ -39,23 +40,29 @@ class URLWatcher(object):
     def __check(self):
         """Check if the watched URL is down by checking the status code.
 
-        If it's anything other than 200, the website is considered "down".
+        If it's anything other than 200, or the get throws an Exception,
+        the website is considered "down".
         """
-        response = get(self.__url)
-        if response.status_code == 200:
-            if self.downtime_info:
-                self.__notify_up()
-            self.downtime_info = None
+        status = '200 OK'
+        try:
+            response = get(self.__url)
+            status = '{} {}'.format(
+                response.status_code,
+                http.client.responses[response.status_code]
+            )
+        except Exception as e:
+            status = e.__class__.__name__
+        
+        if status[:3] == '200':
+            self.__notify_up()
         else:
             if not self.downtime_info:
-                self.downtime_info = DowntimeInfo(response.status_code)
-            seconds = (datetime.now() - self.downtime_info.down_start).total_seconds()
-            if seconds // self.__notify_interval >= self.downtime_info.notifications:
-                self.__notify_down()
-                
+                self.downtime_info = DowntimeInfo(status)
+            self.__notify_down()
     
     def __notify_down(self):
-        if self.downtime_info:
+        seconds = (datetime.now() - self.downtime_info.down_start).total_seconds()
+        if seconds // self.__notify_interval >= self.downtime_info.notifications:
             if not self.downtime_info.notifications:
                 self.__messager.message('Downtime Notification:\n\n{} just went down! Error code: {}'.format(
                     self.__url,
@@ -69,10 +76,11 @@ class URLWatcher(object):
                     ).format(6, datetime.now().hour%12)
                 ))
             self.downtime_info.notifications += 1
-        else:
-            raise Exception('No downtime information!')
     
     def __notify_up(self):
-        self.__messager.message('Downtime Notification:\n\n{} is back up and running!'.format(
-            self.__url
-        ))
+        if self.downtime_info:
+            self.__messager.message('Downtime Notification:\n\n{} is back up and running!'.format(
+                self.__url
+            ))
+        self.downtime_info = None
+        
