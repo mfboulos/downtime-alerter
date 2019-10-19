@@ -48,21 +48,22 @@ class URLWatcher(object):
                 self.__notify_up()
             self.downtime_info = None
         else:
-            self.downtime_info = DowntimeInfo(response.getcode())
-            seconds = datetime.now() - self.downtime_info.down_start).total_seconds()
-            if seconds // self.__notify_interval > self.downtime_info.notifications:
+            if not self.downtime_info:
+                self.downtime_info = DowntimeInfo(response.getcode())
+            seconds = (datetime.now() - self.downtime_info.down_start).total_seconds()
+            if seconds // self.__notify_interval >= self.downtime_info.notifications:
                 self.__notify_down()
                 
     
     def __notify_down(self):
         if self.downtime_info:
             if not self.downtime_info.notifications:
-                messager.message('Downtime Notification:\n\n{} just went down! Error code: {}'.format(
+                self.__messager.message('Downtime Notification:\n\n{} just went down! Error code: {}'.format(
                     self.__url,
                     self.downtime_info.error_code
                 ))
             else:
-                messager.message('Downtime Notification:\n\n{} has been down since {}.'.format(
+                self.__messager.message('Downtime Notification:\n\n{} has been down since {}.'.format(
                     self.__url,
                     str(self.downtime_info.down_start)
                 ))
@@ -71,6 +72,6 @@ class URLWatcher(object):
             raise Exception('No downtime information!')
     
     def __notify_up(self):
-        messager.message('Downtime Notification:\n\n{} is back up and running!'.format(
+        self.__messager.message('Downtime Notification:\n\n{} is back up and running!'.format(
             self.__url
         ))
