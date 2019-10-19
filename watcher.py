@@ -1,6 +1,6 @@
 from timer import RepeatedTimer
 from datetime import datetime
-from urllib.request import urlopen
+from requests import get
 
 class DowntimeInfo(object):
     def __init__(self, error_code):
@@ -41,14 +41,14 @@ class URLWatcher(object):
 
         If it's anything other than 200, the website is considered "down".
         """
-        response = urlopen(self.__url)
-        if response.getcode() == 200:
+        response = get(self.__url)
+        if response.status_code == 200:
             if self.downtime_info:
                 self.__notify_up()
             self.downtime_info = None
         else:
             if not self.downtime_info:
-                self.downtime_info = DowntimeInfo(response.getcode())
+                self.downtime_info = DowntimeInfo(response.status_code)
             seconds = (datetime.now() - self.downtime_info.down_start).total_seconds()
             if seconds // self.__notify_interval >= self.downtime_info.notifications:
                 self.__notify_down()
@@ -62,11 +62,13 @@ class URLWatcher(object):
                     self.downtime_info.error_code
                 ))
             else:
-                self.__messager.message('Downtime Notification:\n\n{} has been down since {}.'.format(
+                self.__messager.message('Downtime Notification:\n\n{} is still down. It has been down since {}.'.format(
                     self.__url,
-                    str(self.downtime_info.down_start)
+                    self.downtime_info.down_start.strftime(
+                        '%A %b {}, %Y at {}:%M%p UTC'
+                    ).format(6, datetime.now().hour%12)
                 ))
-                self.downtime_info.notifications += 1
+            self.downtime_info.notifications += 1
         else:
             raise Exception('No downtime information!')
     
