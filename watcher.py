@@ -3,7 +3,7 @@ from datetime import datetime
 from urllib.request import urlopen
 
 class DowntimeInfo(object):
-    def __init__(self, down_code):
+    def __init__(self, error_code):
         self.down_start = datetime.now()
         self.notifications = 0
         self.error_code = error_code
@@ -12,30 +12,29 @@ class URLWatcher(object):
     """Watcher object that oversees monitoring of a URL
     """
 
-    def __init__(self, url, messager, check_interval=60, notify_interval=86400):
-        """URL and intervals for watching and notification
-        
+    def __init__(self, messager, check_interval=60, notify_interval=86400):
+        """
         Arguments:
-            url {[str]} -- url to watch
+            messender {[SMSMessenger]} -- Twilio messenger used to send SMS notifications
         
         Keyword Arguments:
             check_interval {int} -- number of seconds between HTTP requests (default: {60})
             notify_interval {int} -- number of seconds between notifications (default: {86400})
         """
-        self.__url = url
         self.__messager = messager
         self.__timer = RepeatedTimer(check_interval, self.__check)
         self.downtime_info = None
         self.__notify_interval = notify_interval
     
     def watch(self, url):
-        """Replaces the URL currently being watched with the new URL
+        """Starts periodic checking on this URL. Replaces any previous URL.
         
         Arguments:
             url {[str]} -- new URL to watch
         """
         self.__url = url
         self.downtime_info = None
+        self.__timer.start()
 
     def __check(self):
         """Check if the watched URL is down by checking the status code.
